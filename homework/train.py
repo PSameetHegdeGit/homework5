@@ -123,6 +123,7 @@ if __name__ == '__main__':
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4)
     parser.add_argument('-g', '--gamma', type=float, default=0, help="class dependent weight for cross entropy")
     parser.add_argument('-c', '--continue_training', action='store_true')
+    parser.add_argument('-d', '--data_folder', default='drive_data')
 
     args = parser.parse_args()
     train(args)
