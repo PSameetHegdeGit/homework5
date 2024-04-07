@@ -19,7 +19,7 @@ def rotation(a, b):
         return 1
 
 
-def control(aim_point, current_vel, target_velocity=30):
+def control(aim_point, current_vel, target_velocity=15):
     """
     Set the Action for the low-level controller
     :param aim_point: Aim point, in screen coordinate frame [-1..1]
@@ -48,29 +48,34 @@ def control(aim_point, current_vel, target_velocity=30):
     # if turn is small, then we can accelerate inversely to our velocity, but as angle grows then we should reduce acceleration
     # at angle_of_Radians < threshold_1, normalize to 0..1, when angle_of_radians > threshold_1, set steer = 1, then threshold_2 also set drift
     # Acceleration
-    turn_threshold = 0.2
-    drift_threshold = 0.35
+    turn_threshold = 0.15
+    drift_threshold = 0.40
 
     #small angle in radians
     if angle_in_radians <= (np.pi * turn_threshold):
         sensitivity = 3
         steer = np.clip(w * direction * (angle_in_radians / (np.pi * 0.3)), a_min=-1, a_max=1)
         drift = False
-        acceleration = sensitivity * (1 - (current_vel / target_velocity))
+        #acceleration = sensitivity * (1 - (current_vel / target_velocity))
+        acceleration = 0.5
     elif angle_in_radians > (np.pi * turn_threshold) and angle_in_radians <= (np.pi * drift_threshold):
-        sensitivity = 0.8
+        sensitivity = 0.6
         steer = direction * 1 # let steer magnitude be 1
         drift = False
+        brake = True
         # as turn increases, acceleration should decrease proportionally
-        acceleration = sensitivity * (1 - (angle_in_radians / (np.pi * 0.35)))
+        acceleration = 0.5 * np.clip(sensitivity * (1 - (angle_in_radians / (np.pi * drift_threshold))), a_min=0.01, a_max=1)
     else:
         sensitivity = 1
         steer = direction * 1  # let steer magnitude be 1
         drift = True
+        brake = True
         # as turn increases, acceleration should decrease proportionally
-        acceleration = sensitivity * (1 - (angle_in_radians / np.pi))
+        acceleration = 0.2 * np.clip(sensitivity * (1 - (angle_in_radians / np.pi)), a_min=0.01, a_max=1)
 
-
+    # print('angle_in_radians:', angle_in_radians)
+    # print('acceleration:', acceleration)
+    # print('current_vel:', current_vel)
 
 
     # Break
