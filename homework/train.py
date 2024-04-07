@@ -126,4 +126,4 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--data_folder', default='drive_data')
 
     args = parser.parse_args()
-    train(args)
+    train(args, data_folder=args.data_folder)
