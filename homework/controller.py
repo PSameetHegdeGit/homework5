@@ -19,7 +19,7 @@ def rotation(a, b):
         return 1
 
 
-def control(aim_point, current_vel, target_velocity=23):
+def control(aim_point, current_vel, target_velocity=35):
     """
     Set the Action for the low-level controller
     :param aim_point: Aim point, in screen coordinate frame [-1..1]
