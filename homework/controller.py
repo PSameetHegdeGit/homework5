@@ -19,7 +19,7 @@ def rotation(a, b):
         return 1
 
 
-def control(aim_point, current_vel, target_velocity=35):
+def control(aim_point, current_vel, target_velocity=25):
     """
     Set the Action for the low-level controller
     :param aim_point: Aim point, in screen coordinate frame [-1..1]
@@ -44,25 +44,30 @@ def control(aim_point, current_vel, target_velocity=35):
     angle_in_radians = angle_between_vectors(straight_vector, aim_point)
     direction = rotation(straight_vector, aim_point)
 
-    steep_turn_threshold = 0.15 * np.pi
-    drift_threshold = 0.35 * np.pi
+    turn = 0.12 * np.pi
+    drift_threshold = 0.4 * np.pi
 
-    steer = np.clip(direction * 10 * (angle_in_radians / (np.pi)), a_min=-1, a_max=1)
+    steer = np.clip(direction * 7 * (angle_in_radians / (np.pi)), a_min=-1, a_max=1)
     drift = False
 
-    acceleration = np.clip(2 * (1 - (current_vel / target_velocity)), a_min=0.001, a_max=1)
+    acceleration = 0.5
 
-    if steep_turn_threshold <= angle_in_radians <= drift_threshold:
+    turn_acceleration = lambda decay_rate, angle, threshold: np.exp(decay_rate * (threshold - angle))
+
+    if turn <= angle_in_radians <= drift_threshold:
         drift = False
         brake = True
+        decay_rate = -8
         # as turn increases, acceleration should decrease proportionally
-        acceleration = np.clip((1 - (current_vel / (target_velocity/2))), a_min=0.001, a_max=1)
+        acceleration = np.clip(turn_acceleration(decay_rate, angle_in_radians, drift_threshold), a_min=0.01, a_max=0.5)
     elif angle_in_radians >= drift_threshold:
         drift = True
         brake = True
+        decay_rate = -10
         # as turn increases, acceleration should decrease proportionally
-        acceleration = np.clip((1 - (current_vel / (target_velocity/8))), a_min=0.001, a_max=1)
+        acceleration = np.clip(turn_acceleration(decay_rate, angle_in_radians, drift_threshold), a_min=0.01, a_max=0.3)
 
+    #0.1  # np.clip(1 - (angle_in_radians / (np.pi * drift_threshold)), a_min=0.001, a_max=0.5)
     #nitro edge case
     if angle_in_radians < 0.08:
         nitro = True
@@ -71,10 +76,13 @@ def control(aim_point, current_vel, target_velocity=35):
     if angle_in_radians > 0.75 * np.pi:
         drift = False
 
+    # acceleration = 0.01
+    # brake = True
 
     # print('angle_in_radians:', angle_in_radians)
-    #print('acceleration:', acceleration)
-   #print('current_vel:', current_vel)
+    print('acceleration:', acceleration)
+    #print('current_vel:', current_vel)
+    #print('steer:', steer)
 
     # Break
     if current_vel > target_velocity:
