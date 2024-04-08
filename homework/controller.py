@@ -19,7 +19,7 @@ def rotation(a, b):
         return 1
 
 
-def control(aim_point, current_vel, target_velocity=15):
+def control(aim_point, current_vel, target_velocity=23):
     """
     Set the Action for the low-level controller
     :param aim_point: Aim point, in screen coordinate frame [-1..1]
@@ -36,55 +36,51 @@ def control(aim_point, current_vel, target_velocity=15):
     """
 
     brake = False
+    nitro = False
     aim_point = np.array([aim_point[0], aim_point[1] * -1]) # multiply by -1 to be able to properly calculate angle
-    w = 1 #with a larger weight super heavy steers will all be clipped to 1 // Weight plays a big role (how sensitive the turning is)
     straight_vector = np.array([0,1])
 
     # Steering
     angle_in_radians = angle_between_vectors(straight_vector, aim_point)
     direction = rotation(straight_vector, aim_point)
 
-    # Acceleration, Drift, and Brake is dependent on angle of turn
-    # if turn is small, then we can accelerate inversely to our velocity, but as angle grows then we should reduce acceleration
-    # at angle_of_Radians < threshold_1, normalize to 0..1, when angle_of_radians > threshold_1, set steer = 1, then threshold_2 also set drift
-    # Acceleration
-    turn_threshold = 0.15
-    drift_threshold = 0.40
+    steep_turn_threshold = 0.15 * np.pi
+    drift_threshold = 0.35 * np.pi
 
-    #small angle in radians
-    if angle_in_radians <= (np.pi * turn_threshold):
-        sensitivity = 3
-        steer = np.clip(w * direction * (angle_in_radians / (np.pi * 0.3)), a_min=-1, a_max=1)
-        drift = False
-        #acceleration = sensitivity * (1 - (current_vel / target_velocity))
-        acceleration = 0.5
-    elif angle_in_radians > (np.pi * turn_threshold) and angle_in_radians <= (np.pi * drift_threshold):
-        sensitivity = 0.6
-        steer = direction * 1 # let steer magnitude be 1
+    steer = np.clip(direction * 10 * (angle_in_radians / (np.pi)), a_min=-1, a_max=1)
+    drift = False
+
+    acceleration = np.clip(2 * (1 - (current_vel / target_velocity)), a_min=0.001, a_max=1)
+
+    if steep_turn_threshold <= angle_in_radians <= drift_threshold:
         drift = False
         brake = True
         # as turn increases, acceleration should decrease proportionally
-        acceleration = 0.5 * np.clip(sensitivity * (1 - (angle_in_radians / (np.pi * drift_threshold))), a_min=0.01, a_max=1)
-    else:
-        sensitivity = 1
-        steer = direction * 1  # let steer magnitude be 1
+        acceleration = np.clip((1 - (current_vel / (target_velocity/2))), a_min=0.001, a_max=1)
+    elif angle_in_radians >= drift_threshold:
         drift = True
         brake = True
         # as turn increases, acceleration should decrease proportionally
-        acceleration = 0.2 * np.clip(sensitivity * (1 - (angle_in_radians / np.pi)), a_min=0.01, a_max=1)
+        acceleration = np.clip((1 - (current_vel / (target_velocity/8))), a_min=0.001, a_max=1)
+
+    #nitro edge case
+    if angle_in_radians < 0.08:
+        nitro = True
+
+    #consider an edge case if aim_point is behind us
+    if angle_in_radians > 0.75 * np.pi:
+        drift = False
+
 
     # print('angle_in_radians:', angle_in_radians)
-    # print('acceleration:', acceleration)
-    # print('current_vel:', current_vel)
-
+    #print('acceleration:', acceleration)
+   #print('current_vel:', current_vel)
 
     # Break
     if current_vel > target_velocity:
         brake = True
 
-
-
-    action = pystk.Action(steer=steer, brake=brake, acceleration=acceleration, drift=drift)
+    action = pystk.Action(steer=steer, brake=brake, acceleration=acceleration, drift=drift, nitro=nitro)
 
 
     return action
